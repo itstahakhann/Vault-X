@@ -6,7 +6,6 @@
 
 A local-first password manager for the web and desktop.
 
-[![Build](https://github.com/itstahakhann/Vault-X/actions/workflows/build.yml/badge.svg)](https://github.com/itstahakhann/Vault-X/vaultx/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Electron](https://img.shields.io/badge/Electron-33-47848f?logo=electron&logoColor=white)](https://www.electronjs.org/)
