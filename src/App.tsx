@@ -164,17 +164,28 @@ export default function App() {
   return (
     <>
       <Vault
-        entries={vault.entries}
-        onAdd={vault.addEntry}
-        onUpdate={vault.updateEntry}
-        onDelete={vault.deleteEntry}
-        onLock={lock}
-        autoLockMinutes={autoLockMinutes}
-        onAutoLockChange={setAutoLockMinutes}
-        onExport={handleExport}
-        onRequestImport={() => fileInputRef.current?.click()}
-        onRequestClear={() => setClearOpen(true)}
-      />
+  entries={vault.entries}
+  onAdd={vault.addEntry}
+  onUpdate={vault.updateEntry}
+  onDelete={vault.deleteEntry}
+
+  backupCodeSets={vault.backupCodeSets}
+  onAddBackupCodeSet={vault.addBackupCodeSet}
+  onUpdateBackupCodeSet={vault.updateBackupCodeSet}
+  onDeleteBackupCodeSet={vault.deleteBackupCodeSet}
+
+  apiKeys={vault.apiKeys}
+  onAddApiKey={vault.addApiKey}
+  onUpdateApiKey={vault.updateApiKey}
+  onDeleteApiKey={vault.deleteApiKey}
+
+  onLock={lock}
+  autoLockMinutes={autoLockMinutes}
+  onAutoLockChange={setAutoLockMinutes}
+  onExport={handleExport}
+  onRequestImport={() => fileInputRef.current?.click()}
+  onRequestClear={() => setClearOpen(true)}
+/>
       <input
         ref={fileInputRef}
         type="file"

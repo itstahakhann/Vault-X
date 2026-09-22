@@ -1,16 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-// https://vite.dev/config/
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')
+);
+
 export default defineConfig({
   plugins: [react()],
-
-  // Important for Electron: relative asset URLs so that when the
-  // renderer loads dist/index.html via file://, references like
-  // "./assets/main-abc123.js" resolve inside the app folder instead
-  // of pointing at the filesystem root.
   base: './',
-
+  define: {
+    // Exposed to the client as a global constant.
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

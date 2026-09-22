@@ -7,16 +7,37 @@ import AddEntryModal from '../components/AddEntryModal';
 import EditEntryModal from '../components/EditEntryModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SettingsPanel from '../components/SettingsPanel';
-import type { Category, VaultEntry } from '../types/vault';
+import BackupCodesTab from '../components/BackupCodesTab';
+import ApiKeysTab from '../components/ApiKeysTab';
+import type { Category, VaultEntry, BackupCodeSet, ApiKeyEntry } from '../types/vault';
 import { CATEGORIES } from '../types/vault';
 import { analyzeVault } from '../utils/security';
 import type { EntryFormValues } from '../components/EntryForm';
 
 interface Props {
+  // Existing
   entries: VaultEntry[];
   onAdd: (values: EntryFormValues) => Promise<void>;
   onUpdate: (id: string, patch: Partial<VaultEntry>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+
+  // Backup codes
+  backupCodeSets: BackupCodeSet[];
+  onAddBackupCodeSet: (
+    set: Omit<BackupCodeSet, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>;
+  onUpdateBackupCodeSet: (id: string, patch: Partial<BackupCodeSet>) => Promise<void>;
+  onDeleteBackupCodeSet: (id: string) => Promise<void>;
+
+  // API keys
+  apiKeys: ApiKeyEntry[];
+  onAddApiKey: (
+    key: Omit<ApiKeyEntry, 'id' | 'createdAt' | 'updatedAt'>
+  ) => Promise<void>;
+  onUpdateApiKey: (id: string, patch: Partial<ApiKeyEntry>) => Promise<void>;
+  onDeleteApiKey: (id: string) => Promise<void>;
+
+  // Session
   onLock: () => void;
   autoLockMinutes: number | null;
   onAutoLockChange: (m: number | null) => void;
@@ -26,12 +47,24 @@ interface Props {
 }
 
 type Filter = 'all' | 'favorites' | Category;
+type Tab = 'passwords' | 'backupCodes' | 'apiKeys';
 
 export default function Vault({
   entries,
   onAdd,
   onUpdate,
   onDelete,
+
+  backupCodeSets,
+  onAddBackupCodeSet,
+  onUpdateBackupCodeSet,
+  onDeleteBackupCodeSet,
+
+  apiKeys,
+  onAddApiKey,
+  onUpdateApiKey,
+  onDeleteApiKey,
+
   onLock,
   autoLockMinutes,
   onAutoLockChange,
@@ -39,11 +72,16 @@ export default function Vault({
   onRequestImport,
   onRequestClear,
 }: Props) {
+  const [tab, setTab] = useState<Tab>('passwords');
+
+  // Passwords tab state
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<VaultEntry | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VaultEntry | null>(null);
+
+  // Shell state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
 
@@ -75,14 +113,11 @@ export default function Vault({
   };
 
   const activeFilterLabel =
-    filter === 'all'
-      ? 'All'
-      : filter === 'favorites'
-      ? 'Favorites'
-      : filter;
+    filter === 'all' ? 'All' : filter === 'favorites' ? 'Favorites' : filter;
 
   return (
     <div className="min-h-screen bg-bg-base">
+      {/* ---------- Header ---------- */}
       <header className="sticky top-0 z-30 border-b border-border-subtle bg-bg-base/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -123,94 +158,155 @@ export default function Vault({
             </button>
           </div>
         </div>
+
+        {/* ---------- Tab bar ---------- */}
+        <nav
+          className="mx-auto flex max-w-6xl gap-1 px-4"
+          aria-label="Vault compartments"
+        >
+          {(
+            [
+              ['passwords', 'Passwords', entries.length],
+              ['backupCodes', 'Backup Codes', backupCodeSets.length],
+              ['apiKeys', 'API Keys', apiKeys.length],
+            ] as const
+          ).map(([key, label, count]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              aria-pressed={tab === key}
+              className={
+                'relative -mb-px border-b-2 px-4 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-accent ' +
+                (tab === key
+                  ? 'border-accent text-text-primary'
+                  : 'border-transparent text-text-secondary hover:text-text-primary')
+              }
+            >
+              {label}
+              <span className="ml-2 rounded-full bg-bg-elevated px-2 py-0.5 text-xs text-text-muted">
+                {count}
+              </span>
+            </button>
+          ))}
+        </nav>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-text-primary">My Vault</h1>
-            <p className="mt-1 text-sm text-text-secondary">
-              {entries.length} {entries.length === 1 ? 'password' : 'passwords'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent"
-          >
-            <Plus size={16} />
-            Add Password
-          </button>
-        </div>
-
-        {showSecurity && (
-          <section
-            aria-label="Vault security overview"
-            className="mb-6 rounded-lg border border-border-subtle bg-bg-surface p-4"
-          >
-            <h2 className="mb-3 text-sm font-semibold text-text-primary">Vault Security</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Stat label="Strong passwords" value={security.strong} tone="success" />
-              <Stat label="Weak passwords" value={security.weak} tone="danger" />
-              <Stat label="Reused passwords" value={security.reused} tone="warning" />
-              <Stat label="Old passwords" value={security.old} tone="warning" />
+        {/* ---------- Passwords tab ---------- */}
+        {tab === 'passwords' && (
+          <>
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-xl font-semibold text-text-primary">My Vault</h1>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {entries.length} {entries.length === 1 ? 'password' : 'passwords'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <Plus size={16} />
+                Add Password
+              </button>
             </div>
-            <p className="mt-3 text-xs text-text-muted">
-              Analysis runs entirely in memory. Nothing is uploaded.
-            </p>
-          </section>
+
+            {showSecurity && (
+              <section
+                aria-label="Vault security overview"
+                className="mb-6 rounded-lg border border-border-subtle bg-bg-surface p-4"
+              >
+                <h2 className="mb-3 text-sm font-semibold text-text-primary">
+                  Vault Security
+                </h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <Stat label="Strong passwords" value={security.strong} tone="success" />
+                  <Stat label="Weak passwords" value={security.weak} tone="danger" />
+                  <Stat label="Reused passwords" value={security.reused} tone="warning" />
+                  <Stat label="Old passwords" value={security.old} tone="warning" />
+                </div>
+                <p className="mt-3 text-xs text-text-muted">
+                  Analysis runs entirely in memory. Nothing is uploaded.
+                </p>
+              </section>
+            )}
+
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <SearchBar value={search} onChange={setSearch} />
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <FilterChip
+                  active={filter === 'all'}
+                  onClick={() => setFilter('all')}
+                  label="All"
+                />
+                <FilterChip
+                  active={filter === 'favorites'}
+                  onClick={() => setFilter('favorites')}
+                  label="Favorites"
+                  icon={<Star size={12} />}
+                />
+                {CATEGORIES.map((c) => (
+                  <FilterChip
+                    key={c}
+                    active={filter === c}
+                    onClick={() => setFilter(c)}
+                    label={c}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {entries.length === 0 ? (
+              <EmptyVault onAdd={() => setAddOpen(true)} />
+            ) : filtered.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border-subtle bg-bg-surface px-6 py-12 text-center">
+                <p className="text-sm text-text-secondary">
+                  No entries match{' '}
+                  {search ? `"${search}"` : `the ${activeFilterLabel} filter`}.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {filtered.map((entry) => (
+                  <VaultCard
+                    key={entry.id}
+                    entry={entry}
+                    onEdit={setEditing}
+                    onDelete={setDeleteTarget}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <SearchBar value={search} onChange={setSearch} />
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <FilterChip
-              active={filter === 'all'}
-              onClick={() => setFilter('all')}
-              label="All"
-            />
-            <FilterChip
-              active={filter === 'favorites'}
-              onClick={() => setFilter('favorites')}
-              label="Favorites"
-              icon={<Star size={12} />}
-            />
-            {CATEGORIES.map((c) => (
-              <FilterChip
-                key={c}
-                active={filter === c}
-                onClick={() => setFilter(c)}
-                label={c}
-              />
-            ))}
-          </div>
-        </div>
+        {/* ---------- Backup Codes tab ---------- */}
+        {tab === 'backupCodes' && (
+          <BackupCodesTab
+            sets={backupCodeSets}
+            onAdd={onAddBackupCodeSet}
+            onUpdate={onUpdateBackupCodeSet}
+            onDelete={onDeleteBackupCodeSet}
+          />
+        )}
 
-        {entries.length === 0 ? (
-          <EmptyVault onAdd={() => setAddOpen(true)} />
-        ) : filtered.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border-subtle bg-bg-surface px-6 py-12 text-center">
-            <p className="text-sm text-text-secondary">
-              No entries match {search ? `"${search}"` : `the ${activeFilterLabel} filter`}.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((entry) => (
-              <VaultCard
-                key={entry.id}
-                entry={entry}
-                onEdit={setEditing}
-                onDelete={setDeleteTarget}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))}
-          </div>
+        {/* ---------- API Keys tab ---------- */}
+        {tab === 'apiKeys' && (
+          <ApiKeysTab
+            keys={apiKeys}
+            onAdd={onAddApiKey}
+            onUpdate={onUpdateApiKey}
+            onDelete={onDeleteApiKey}
+          />
         )}
       </main>
 
+      {/* ---------- Password modals ---------- */}
       <AddEntryModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
@@ -248,6 +344,7 @@ export default function Vault({
         onCancel={() => setDeleteTarget(null)}
       />
 
+      {/* ---------- Settings ---------- */}
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -273,6 +370,10 @@ export default function Vault({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * Small local components
+ * ------------------------------------------------------------------ */
 
 function FilterChip({
   active,
@@ -313,7 +414,11 @@ function Stat({
   tone: 'success' | 'warning' | 'danger';
 }) {
   const color =
-    tone === 'success' ? 'text-success' : tone === 'danger' ? 'text-danger' : 'text-warning';
+    tone === 'success'
+      ? 'text-success'
+      : tone === 'danger'
+      ? 'text-danger'
+      : 'text-warning';
   return (
     <div className="rounded-md border border-border-subtle bg-bg-base p-3">
       <div className={'text-lg font-semibold ' + color}>{value}</div>

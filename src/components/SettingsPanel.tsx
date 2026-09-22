@@ -153,7 +153,7 @@ export default function SettingsPanel({
             </h3>
             <div className="space-y-2 rounded-md border border-border-subtle bg-bg-surface p-3 text-sm text-text-secondary">
               <p>
-                <span className="text-text-muted">Version:</span> 1.0.0
+                <span className="text-text-muted">Version:</span> 1.1.0
               </p>
               <p className="leading-relaxed">
                 VaultX is local-first. Your passwords are encrypted in your browser and

@@ -1,9 +1,7 @@
-﻿/**
+/**
  * Vault security analysis.
  *
- * SECURITY: Runs entirely in memory against the decrypted vault. No
- * password values are ever sent anywhere, logged, or rendered. Only
- * aggregate counts are returned.
+ * SECURITY: Runs entirely in memory against the decrypted vault.
  */
 
 import type { VaultEntry } from '../types/vault';
@@ -33,7 +31,6 @@ function scorePassword(pw: string): number {
 export function analyzeVault(entries: VaultEntry[]): SecurityReport {
   const now = Date.now();
   const passwordCounts = new Map<string, number>();
-
   let strong = 0;
   let weak = 0;
   let old = 0;
@@ -42,9 +39,7 @@ export function analyzeVault(entries: VaultEntry[]): SecurityReport {
     const pw = e.password ?? '';
     if (scorePassword(pw) >= 5 && pw.length >= 12) strong++;
     else if (scorePassword(pw) <= 3 || pw.length < 10) weak++;
-
     passwordCounts.set(pw, (passwordCounts.get(pw) ?? 0) + 1);
-
     const updated = Date.parse(e.updatedAt);
     if (!Number.isNaN(updated)) {
       const ageDays = (now - updated) / 86_400_000;
@@ -56,6 +51,5 @@ export function analyzeVault(entries: VaultEntry[]): SecurityReport {
   for (const count of passwordCounts.values()) {
     if (count > 1) reused += count;
   }
-
   return { total: entries.length, strong, weak, reused, old };
 }

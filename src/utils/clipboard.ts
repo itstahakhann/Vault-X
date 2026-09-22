@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Clipboard helpers.
  *
  * SECURITY: We do not log clipboard content. Where the API supports it,
@@ -6,7 +6,6 @@
  */
 
 const CLEAR_DELAY_MS = 30_000;
-
 let clearTimer: number | null = null;
 
 export async function copyToClipboard(text: string): Promise<void> {
